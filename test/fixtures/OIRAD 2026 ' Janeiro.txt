@@ -1,0 +1,59 @@
+# OIRAD
+
+## 2011
+
+26-12-2011
+
+21:40
+Casa de teste
+
+Entrada inventada para testar o leitor. Nada disto é verdadeiro.
+Segunda linha do mesmo parágrafo, com **negrito** e *itálico*.
+
+## 2014
+
+03/05/2014
+
+10:15
+Comboio para o Porto
+
+Texto de exemplo sobre uma viagem que não aconteceu.
+
+- primeiro ponto da lista
+- segundo ponto, com `código`
+
+[Notas de Eu]
+12/03/2026 : nota acrescentada mais tarde a uma entrada antiga
+
+## 2022
+
+22/06/2022
+
+18:00
+Jardim
+
+Uma entrada que cita outra mais antiga:
+↳ 18/10/2018
+e continua depois da citação. O coração bate devagar.
+
+Um parágrafo com <script>alert(1)</script> que tem de aparecer como texto.
+
+## 2026
+
+20/10/2026
+
+08:30
+Lisboa
+
+Dia de teste. Café, maçã, coração, caminhada.
+
+22/10/2026
+
+23:10
+Lisboa
+
+Última entrada verdadeira do ficheiro de teste. Pesquisa: Coração.
+
+01/01/2099
+
+Data com gralha no futuro, não deve contar como última entrada.

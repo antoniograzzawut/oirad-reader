@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="pt-PT" data-look="original">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#111118">
+<title>OIRAD</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<script src="look.js"></script>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ── ASPECTO 1: ORIGINAL ──────────────────────────────────────────────────────
+   O Mac como está: ambiente "noite", régua vermelha à esquerda, datas em
+   carimbo, notas em caixa "// NOTA", ecrã de entrada com riscas de arcada. */
+:root {
+  --paper:  #111118;
+  --chrome: #1C1C28;
+  --ink:    #D8D4C8;
+  --muted:  #7070A8;
+  --border: #2E3060;
+  --sel:    #1A2080;
+  --accent: #C83000;
+  --sans:   'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
+  --serif:  Georgia, 'Noto Serif', serif;
+  --mono:   'SF Mono', Menlo, 'Roboto Mono', 'Droid Sans Mono', monospace;
+  --body:   'Gill Sans', 'Gill Sans MT', Calibri, Roboto, sans-serif;
+  --fs:     16px;
+  --scale:  1;
+}
+
+html, body { height: 100%; background: var(--paper); color: var(--ink); -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+body { font-family: var(--sans); overscroll-behavior: none; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+input { font: inherit; color: inherit; }
+
+.stamp { display: inline-block; background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.24em; padding: 3px 10px 2px; text-transform: uppercase; }
+
+/* Ecrãs de entrada: trancar, primeira vez, escolher ficheiros */
+.gate { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px 16px; overflow-y: auto; background: var(--paper); }
+.gate-box { position: relative; z-index: 1; width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 14px; }
+.gate-title { text-align: center; margin-bottom: 10px; }
+.lede { font-size: 14px; line-height: 1.55; color: var(--muted); }
+.lede b { color: var(--ink); font-weight: 600; }
+.gate form { display: flex; flex-direction: column; gap: 14px; }
+.gate input { width: 100%; background: transparent; border: 0; border-bottom: 1.5px solid var(--border); border-radius: 0; padding: 10px 2px; font-size: 16px; outline: none; text-align: center; letter-spacing: 0.06em; }
+.gate input:focus { border-color: var(--accent); }
+.btn { border: 1px solid var(--border); padding: 13px 16px; font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.btn.primary { border-color: var(--ink); color: var(--ink); }
+.btn:disabled { opacity: 0.35; }
+.link { font-size: 12px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; padding: 8px; align-self: center; }
+.msg { min-height: 1.2em; font-size: 13px; color: var(--accent); text-align: center; }
+.msg:empty { display: none; }
+.hint { font-size: 12px; line-height: 1.5; color: var(--muted); }
+.import-list { list-style: none; }
+.import-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.import-list .k { flex: none; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.import-list .v { text-align: right; overflow-wrap: anywhere; line-height: 1.4; }
+.import-list .v.missing { color: var(--muted); font-style: italic; }
+.import-notes { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.import-notes li { font-size: 12px; line-height: 1.4; color: var(--accent); }
+
+html[data-look="original"] #scr-lock { background: #0a0a0a; }
+html[data-look="original"] #scr-lock::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(0,70,0,0.1) 3px, rgba(0,70,0,0.1) 4px); }
+
+/* A app */
+#scr-app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+#bar { flex: none; background: var(--paper); border-bottom: 1px solid var(--border); position: relative; z-index: 5; }
+#bar-top, #bar-search { display: flex; align-items: center; gap: 2px; height: 48px; padding: 0 4px 0 16px; }
+.spacer { flex: 1; }
+.icon-btn { flex: none; width: 42px; height: 42px; display: grid; place-items: center; color: var(--muted); }
+.icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn svg.solid { fill: currentColor; stroke: none; }
+#tabs { display: flex; padding: 0 8px; }
+.tab { flex: 1; height: 40px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid transparent; }
+.tab.on { color: var(--ink); border-bottom-color: var(--accent); }
+#q { flex: 1; min-width: 0; background: transparent; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 6px 2px; font-size: 16px; outline: none; }
+#q::-webkit-search-cancel-button { display: none; }
+#q-count { flex: none; font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 44px; text-align: right; padding-right: 2px; }
+#views { flex: 1; position: relative; overflow: hidden; }
+.view { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; visibility: hidden; }
+.view.on { visibility: visible; }
+
+/* Diário */
+.doc { margin-left: 8px; padding: 20px 18px 120px 18px; border-left: 3px solid var(--accent); font-family: var(--body); font-size: calc(var(--fs) * var(--scale)); line-height: 1.6; overflow-wrap: break-word; user-select: text; }
+.doc .entry-sep { border: none; border-top: 1px solid var(--border); margin: 2.2em 0 0.9em; }
+.doc .entry-date { display: inline-block; background: var(--ink); color: var(--paper); padding: 2px 9px 1px; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.18em; margin-bottom: 8px; }
+.doc .entry-time { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 4px; }
+.doc .entry-loc { display: block; font-style: italic; color: var(--muted); font-size: 0.93em; margin-bottom: 0.9em; }
+.doc p { margin: 0 0 0.5em; }
+.doc p + p { margin-top: 0.4em; }
+.doc h1 { font-family: var(--sans); font-size: 1.2em; font-weight: 700; margin: 2.5em 0 0.8em; }
+.doc h2 { font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink); margin: 3em 0 1em; padding-bottom: 5px; border-bottom: 2px solid var(--accent); }
+.doc h3, .doc h4, .doc h5, .doc h6 { font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 2em 0 0.8em; }
+.doc hr { border: none; border-top: 1px solid var(--border); margin: 2.5em 0; }
+.doc ul { margin: 0 0 0.8em 1.3em; }
+.doc li { margin: 0.2em 0; }
+.doc code { font-family: var(--mono); font-size: 0.85em; background: var(--chrome); padding: 1px 5px; }
+.doc .annotation { position: relative; border: 2px solid var(--ink); background: var(--chrome); padding: 30px 14px 12px; margin: 0.9em 0; font-size: 0.9em; font-style: italic; color: var(--muted); line-height: 1.65; }
+.doc .annotation::before { content: '// NOTA'; position: absolute; top: 0; left: 0; right: 0; background: var(--accent); color: var(--paper); font-family: var(--mono); font-size: 8px; font-weight: 700; font-style: normal; letter-spacing: 0.22em; padding: 4px 10px; }
+.doc-end { margin-top: 3em; padding-top: 1em; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; color: var(--muted); text-align: center; }
+
+/* Sonhos e gratidão */
+.list { padding: 4px 0 60px; }
+.list-head { padding: 16px 16px 8px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.day { padding: 18px 16px; border-bottom: 1px solid var(--border); }
+.day-date { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.18em; color: var(--muted); margin-bottom: 10px; }
+.day-text { font-family: var(--body); font-size: calc(var(--fs) * var(--scale) * 0.94); line-height: 1.65; overflow-wrap: break-word; }
+.grat-item { display: flex; gap: 12px; padding: 3px 0; }
+.grat-n { flex: none; width: 1em; font-family: var(--mono); font-size: 10px; color: var(--muted); padding-top: 0.45em; }
+.empty { padding: 56px 24px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.6; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+
+mark { background: var(--sel); color: inherit; padding: 0 1px; }
+mark.cur { background: var(--accent); color: #fff; }
+
+#fab { position: absolute; right: 14px; bottom: calc(18px + env(safe-area-inset-bottom)); display: flex; gap: 8px; z-index: 4; }
+.fab-btn { min-width: 44px; height: 40px; padding: 0 13px; background: var(--chrome); border: 1px solid var(--border); color: var(--muted); font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; display: grid; place-items: center; }
+.fab-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Menu e lista de anos (folha que sobe de baixo) */
+#sheet-wrap { position: fixed; inset: 0; z-index: 20; }
+#sheet-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.55); }
+#sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 82vh; overflow-y: auto; background: var(--chrome); border-top: 1px solid var(--border); padding: 18px 16px calc(22px + env(safe-area-inset-bottom)); }
+.sheet-title { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+.info { font-size: 13px; line-height: 1.75; color: var(--muted); padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.info b { color: var(--ink); font-weight: 600; }
+.sheet-btn { display: block; width: 100%; text-align: left; padding: 15px 0; border-bottom: 1px solid var(--border); font-size: 15px; color: var(--ink); }
+.sheet-btn.danger { color: var(--muted); font-size: 13px; }
+.sheet-row { display: flex; flex-direction: column; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 15px; }
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1; border: 1px solid var(--border); padding: 11px 6px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.seg button.on { border-color: var(--ink); color: var(--ink); }
+.years { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.years button { border: 1px solid var(--border); padding: 13px 0; font-family: var(--mono); font-size: 12px; color: var(--ink); }
+.foot { font-size: 11px; color: var(--muted); margin-top: 14px; line-height: 1.55; }
+
+#toast { position: fixed; left: 16px; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 30; background: var(--chrome); border: 1px solid var(--accent); color: var(--ink); font-size: 13px; line-height: 1.5; padding: 12px 14px; }
+#veil { position: fixed; inset: 0; z-index: 50; background: var(--paper); display: none; }
+html.veiled #veil { display: block; }
+
+/* ── ASPECTO 2: LIVRO ─────────────────────────────────────────────────────────
+   Ambiente "carvão" do Mac, letra serifada, coluna de leitura centrada, datas
+   como no estilo antigo do Mac (antes do carimbo), notas com a régua simples. */
+html[data-look="livro"] {
+  --paper:  #141210;
+  --chrome: #1E1A16;
+  --ink:    #DCD4C4;
+  --muted:  #9A8F7E;
+  --border: #3A342C;
+  --sel:    #5A4A20;
+  --body:   Georgia, 'Noto Serif', serif;
+  --fs:     17px;
+}
+html[data-look="livro"] .stamp { background: none; color: var(--ink); font-family: var(--serif); font-size: 15px; font-weight: 400; letter-spacing: 0.42em; padding: 0; }
+html[data-look="livro"] .tab { font-family: var(--sans); font-size: 11px; font-weight: 600; letter-spacing: 0.24em; border-bottom-width: 1px; }
+html[data-look="livro"] .tab.on { border-bottom-color: var(--ink); }
+html[data-look="livro"] .doc { border-left: 0; margin: 0 auto; max-width: 36em; padding: 28px 22px 140px; line-height: 1.75; }
+html[data-look="livro"] .doc .entry-sep { width: 40px; margin: 3.4em auto 1.6em; border-top-color: var(--muted); }
+html[data-look="livro"] .doc .entry-sep + div { text-align: center; }
+html[data-look="livro"] .doc .entry-date { display: block; background: none; color: var(--ink); padding: 0; font-family: var(--sans); font-size: 11px; letter-spacing: 0.32em; margin-bottom: 6px; text-align: center; }
+html[data-look="livro"] .doc .entry-time { font-family: var(--sans); text-align: center; }
+html[data-look="livro"] .doc .entry-loc { text-align: center; margin-bottom: 1.8em; }
+html[data-look="livro"] .doc .annotation { border: 0; border-left: 2px solid var(--accent); background: transparent; padding: 4px 0 4px 16px; margin: 1.2em 0; }
+html[data-look="livro"] .doc .annotation::before { content: none; }
+html[data-look="livro"] .doc .annotation strong { font-family: var(--sans); font-size: 9px; font-style: normal; letter-spacing: 0.22em; text-transform: uppercase; }
+html[data-look="livro"] .doc h2 { border-bottom: 0; text-align: center; color: var(--muted); }
+html[data-look="livro"] .doc-end { font-family: var(--sans); letter-spacing: 0.24em; }
+html[data-look="livro"] .list-head { text-align: center; font-family: var(--sans); letter-spacing: 0.28em; padding-top: 22px; }
+html[data-look="livro"] .day { max-width: 36em; margin: 0 auto; padding: 28px 22px; }
+html[data-look="livro"] .day-date { font-family: var(--sans); letter-spacing: 0.28em; text-align: center; margin-bottom: 14px; }
+html[data-look="livro"] .day-text { line-height: 1.75; }
+html[data-look="livro"] .grat-item { justify-content: center; text-align: center; padding: 4px 0; }
+html[data-look="livro"] .grat-n { display: none; }
+html[data-look="livro"] .fab-btn { border-radius: 20px; font-family: var(--sans); }
+html[data-look="livro"] .seg button, html[data-look="livro"] .years button, html[data-look="livro"] .btn { font-family: var(--sans); }
+html[data-look="livro"] .years button { font-family: var(--serif); font-size: 14px; }
+html[data-look="livro"] mark.cur { background: #8A6A2A; }
+
+/* ── ASPECTO 3: OIRAD.EXE ─────────────────────────────────────────────────────
+   Ambiente "meia-noite" e as janelas Windows 95 que o Mac já usa na caixa de
+   nova entrada e no resultado do "whim": barras de título azuis, botões em relevo. */
+html[data-look="exe"] {
+  --paper:  #0C0E14;
+  --chrome: #14161E;
+  --ink:    #CCD4E0;
+  --muted:  #6E82A8;
+  --border: #283048;
+  --sel:    #203058;
+  --body:   var(--sans);
+  --fs:     15.5px;
+  --win:    linear-gradient(90deg, #000080, #1084d0);
+  --hi:     #3C4870;
+  --lo:     #030408;
+}
+html[data-look="exe"] .stamp { background: none; color: #fff; padding: 0; letter-spacing: 0.14em; }
+html[data-look="exe"] .stamp::after { content: '.EXE'; }
+html[data-look="exe"] .gate-box { background: var(--chrome); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); box-shadow: 4px 4px 0 rgba(0,0,0,0.5); padding: 0 16px 18px; gap: 14px; }
+html[data-look="exe"] .gate-title { background: var(--win); margin: 0 -16px 4px; padding: 6px 10px; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+html[data-look="exe"] .gate-title::after { content: '_ □ ×'; color: #fff; font-family: var(--mono); font-size: 10px; letter-spacing: 0.3em; }
+html[data-look="exe"] .gate input { background: var(--paper); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); text-align: left; padding: 9px 10px; }
+html[data-look="exe"] .btn, html[data-look="exe"] .fab-btn, html[data-look="exe"] .seg button, html[data-look="exe"] .years button { background: var(--chrome); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); color: var(--ink); font-family: var(--mono); }
+html[data-look="exe"] .btn:active, html[data-look="exe"] .fab-btn:active, html[data-look="exe"] .seg button:active, html[data-look="exe"] .years button:active, html[data-look="exe"] .seg button.on { border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
+html[data-look="exe"] .seg button.on { background: var(--paper); }
+html[data-look="exe"] #bar { border-bottom: 0; background: var(--chrome); }
+html[data-look="exe"] #bar-top, html[data-look="exe"] #bar-search { background: var(--win); height: 44px; padding-left: 12px; }
+html[data-look="exe"] #bar .icon-btn { width: 34px; height: 30px; margin-left: 4px; background: var(--chrome); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); color: var(--ink); }
+html[data-look="exe"] #bar .icon-btn svg { width: 16px; height: 16px; }
+html[data-look="exe"] #q { background: var(--paper); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); padding: 4px 8px; font-size: 15px; }
+html[data-look="exe"] #q-count { color: #fff; }
+html[data-look="exe"] #tabs { padding: 6px 6px 0; gap: 3px; border-bottom: 2px solid var(--hi); }
+html[data-look="exe"] .tab { height: 34px; background: var(--chrome); border: 2px solid; border-color: var(--hi) var(--lo) transparent var(--hi); border-bottom: 0; font-size: 10px; letter-spacing: 0.12em; }
+html[data-look="exe"] .tab.on { background: var(--paper); color: var(--ink); height: 38px; margin-top: -4px; }
+html[data-look="exe"] .doc { border-left: 0; margin: 0; padding: 4px 10px 120px; }
+html[data-look="exe"] .doc .entry-sep { border: 0; margin: 1.8em 0 0; }
+html[data-look="exe"] .doc .entry-date { display: flex; justify-content: space-between; background: var(--win); color: #fff; font-size: 10px; letter-spacing: 0.14em; padding: 5px 10px; margin: 0 0 10px; }
+html[data-look="exe"] .doc .entry-date::after { content: '_ □ ×'; letter-spacing: 0.3em; opacity: 0.85; }
+html[data-look="exe"] .doc .entry-time, html[data-look="exe"] .doc .entry-loc { padding-left: 2px; }
+html[data-look="exe"] .doc .entry-loc { font-family: var(--mono); font-size: 11px; font-style: normal; letter-spacing: 0.04em; }
+html[data-look="exe"] .doc .annotation { border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
+html[data-look="exe"] .doc .annotation::before { content: 'NOTA.TXT'; background: var(--win); color: #fff; }
+html[data-look="exe"] .doc h2 { border-bottom-color: #1084d0; }
+html[data-look="exe"] .list { padding: 6px 10px 60px; }
+html[data-look="exe"] .list-head { padding: 12px 4px 8px; }
+html[data-look="exe"] .day { margin: 0 0 12px; padding: 0 12px 12px; background: var(--chrome); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
+html[data-look="exe"] .day-date { display: flex; justify-content: space-between; margin: 0 -12px 12px; padding: 5px 10px; background: var(--win); color: #fff; letter-spacing: 0.14em; }
+html[data-look="exe"] .day-date::after { content: '_ □ ×'; letter-spacing: 0.3em; opacity: 0.85; }
+html[data-look="exe"] #sheet { background: var(--chrome); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); padding-top: 0; }
+html[data-look="exe"] .sheet-title { position: sticky; top: 0; z-index: 1; margin: 0 -16px 12px; padding: 7px 12px; background: var(--win); color: #fff; letter-spacing: 0.14em; }
+html[data-look="exe"] mark.cur { background: #1084d0; }
+html[data-look="exe"] #toast { border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
+html[data-look="exe"] .empty { margin: 24px 6px; background: var(--chrome); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
+</style>
+</head>
+<body>
+
+<section id="scr-lock" class="screen gate" hidden>
+  <div class="gate-box">
+    <div class="gate-title"><span class="stamp">OIRAD</span></div>
+    <form id="lock-form" autocomplete="off">
+      <input id="lock-pw" type="password" placeholder="palavra-passe" autocomplete="current-password" enterkeyhint="go" aria-label="Palavra-passe">
+      <button class="btn primary" id="lock-go" type="submit">Entrar</button>
+    </form>
+    <p class="msg" id="lock-msg"></p>
+    <button class="link" id="lock-forgot" type="button">Esqueci-me da palavra-passe</button>
+  </div>
+</section>
+
+<section id="scr-setup" class="screen gate" hidden>
+  <div class="gate-box">
+    <div class="gate-title"><span class="stamp">OIRAD</span></div>
+    <p class="lede">Leitor do diário para o telemóvel. <b>Só lê.</b> Nada do que fizeres aqui muda o diário no Mac ou no Drive.</p>
+    <p class="lede">Escolhe uma palavra-passe. Tranca a cópia que fica guardada neste telemóvel.</p>
+    <form id="setup-form" autocomplete="off">
+      <input id="setup-pw" type="password" placeholder="palavra-passe" autocomplete="new-password" aria-label="Palavra-passe">
+      <input id="setup-pw2" type="password" placeholder="outra vez" autocomplete="new-password" enterkeyhint="go" aria-label="Palavra-passe outra vez">
+      <button class="btn primary" id="setup-go" type="submit">Continuar</button>
+    </form>
+    <p class="msg" id="setup-msg"></p>
+  </div>
+</section>
+
+<section id="scr-import" class="screen gate" hidden>
+  <div class="gate-box">
+    <div class="gate-title"><span class="stamp">OIRAD</span></div>
+    <p class="lede">No Drive, pasta <b>OIRAD Backup</b> (fora da pasta Snapshots), escolhe estes três ficheiros:</p>
+    <ul class="import-list" id="import-list"></ul>
+    <button class="btn" id="pick-btn" type="button">Escolher ficheiros</button>
+    <input id="file-input" type="file" multiple hidden>
+    <ul class="import-notes" id="import-notes"></ul>
+    <button class="btn primary" id="import-done" type="button" disabled>Abrir</button>
+    <button class="link" id="import-cancel" type="button" hidden>Voltar sem mudar nada</button>
+    <p class="hint">No ecrã de escolha, carrega sem largar no primeiro ficheiro e depois toca nos outros dois. Se não der, escolhe um de cada vez: cada escolha junta-se às anteriores.</p>
+  </div>
+</section>
+
+<section id="scr-app" class="screen" hidden>
+  <header id="bar">
+    <div id="bar-top">
+      <span class="stamp" id="brand">OIRAD</span>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="btn-search" type="button" aria-label="Procurar"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button>
+      <button class="icon-btn" id="btn-menu" type="button" aria-label="Menu"><svg class="solid" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg></button>
+    </div>
+    <div id="bar-search" hidden>
+      <input id="q" type="search" placeholder="procurar" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Procurar">
+      <span id="q-count"></span>
+      <button class="icon-btn" id="q-prev" type="button" aria-label="Acima"><svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
+      <button class="icon-btn" id="q-next" type="button" aria-label="Abaixo"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+      <button class="icon-btn" id="q-close" type="button" aria-label="Fechar pesquisa"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <nav id="tabs">
+      <button class="tab" type="button" data-tab="diary">Diário</button>
+      <button class="tab" type="button" data-tab="dreams">Sonhos</button>
+      <button class="tab" type="button" data-tab="gratitude">Grato</button>
+    </nav>
+  </header>
+  <main id="views">
+    <div class="view" id="view-diary"></div>
+    <div class="view" id="view-dreams"></div>
+    <div class="view" id="view-gratitude"></div>
+    <div id="fab">
+      <button class="fab-btn" id="btn-years" type="button">Anos</button>
+      <button class="fab-btn" id="btn-end" type="button" aria-label="Ir para a entrada mais recente"><svg viewBox="0 0 24 24"><path d="M12 4v15M6 13l6 6 6-6"/></svg></button>
+    </div>
+  </main>
+</section>
+
+<div id="sheet-wrap" hidden>
+  <div id="sheet-backdrop"></div>
+  <div id="sheet" role="dialog" aria-modal="true">
+    <div class="sheet-title" id="sheet-title"></div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<div id="toast" role="status" hidden></div>
+<div id="veil"></div>
+
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
