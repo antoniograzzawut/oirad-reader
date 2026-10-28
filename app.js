@@ -115,6 +115,10 @@ $('setup-form').addEventListener('submit', async e => {
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {})
 })
 
+// Um aviso só vale para a tentativa que o causou: apaga-se assim que se volta a escrever.
+for (const id of ['setup-pw', 'setup-pw2']) $(id).addEventListener('input', () => say('setup-msg'))
+$('lock-pw').addEventListener('input', () => say('lock-msg'))
+
 // ── ESCOLHER FICHEIROS ────────────────────────────────────────────────────────
 function openImport(canCancel) {
   pending = { diary: data.diary, dreams: data.dreams, gratitude: data.gratitude }
