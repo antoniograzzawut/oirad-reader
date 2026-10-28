@@ -64,6 +64,7 @@ let outbox = emptyOutbox() // o que se escreveu aqui: { items, draft }, guardado
 let outboxLocked = false   // a lista guardada não abriu: não se escreve por cima dela
 let shareGraceUntil = 0    // enviar abre o Drive, que pode demorar: não trancar a meio
 let sharing = false
+let pendingWrite = null    // um lembrete pediu para abrir a escrita: abre depois de destrancar
 
 function show(name) {
   for (const s of ['lock', 'setup', 'import', 'app', 'write']) $('scr-' + s).hidden = s !== name
@@ -89,6 +90,9 @@ const hhmm = d => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinute
 async function boot() {
   applyLook(currentLook())
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {})
+  const want = new URLSearchParams(location.search).get('escrever')
+  if (C.KINDS.includes(want)) pendingWrite = want
+  if (location.search) history.replaceState(null, '', location.pathname)
   if (!window.crypto || !crypto.subtle) {
     show('setup')
     $('setup-go').disabled = true
@@ -311,6 +315,7 @@ function enterApp() {
   selectTab(tab)
   // Abre no fim do diário, na entrada mais recente, como no Mac.
   requestAnimationFrame(() => { const v = $('view-diary'); v.scrollTop = v.scrollHeight })
+  if (pendingWrite) { const k = pendingWrite; pendingWrite = null; openWrite(k) }
 }
 
 function selectTab(t) {
@@ -455,9 +460,11 @@ function openMenu() {
     <div class="sheet-row"><span>Aspecto</span><div class="seg">${LOOKS.map(l =>
       `<button type="button" data-set-look="${l.id}" class="${l.id === look ? 'on' : ''}">${l.label}</button>`).join('')}</div></div>
     <div class="sheet-row"><span>Tamanho da letra</span><div class="seg"><button type="button" data-act="smaller">A−</button><button type="button" data-act="bigger">A+</button></div></div>
+    <div id="remind-box"></div>
     <button class="sheet-btn" type="button" data-act="lock">Trancar agora</button>
     <button class="sheet-btn danger" type="button" data-act="wipe">Apagar a cópia deste telemóvel</button>
     <p class="foot">Ler nunca muda nada. O que escreves só sai quando carregas em Enviar, e só entra no diário quando o juntares no Mac. Tranca sozinho depois de um minuto fora da app.</p>`)
+  renderRemind()
 }
 
 function openYears() {
@@ -497,6 +504,8 @@ $('sheet-body').addEventListener('click', e => {
     case 'smaller': setScale(-1); break
     case 'bigger': setScale(1); break
     case 'lock': closeSheet(); lock(); break
+    case 'remind-on': remindOn(); break
+    case 'remind-code': remindCode(); break
     case 'top': case 'end': closeSheet(); scrollDiary(b.dataset.act); break
     case 'wipe':
       {
@@ -600,10 +609,11 @@ function stashDraft() {
 }
 function updatePendingDot() { $('btn-write').classList.toggle('pending', unsentCount(outbox) > 0) }
 
-function openWrite() {
+function openWrite(kind) {
   if (outboxLocked) return toast('Não consegui abrir o que escreveste neste telemóvel. Não mexi em nada; para não estragar, escrever fica desligado até isto se resolver.')
   // Rascunho com texto volta tal e qual; sem texto, data e hora de agora.
   fillForm(draftHasText(outbox.draft) ? outbox.draft : { kind: outbox.draft && outbox.draft.kind })
+  if (C.KINDS.includes(kind)) setKind(kind) // vindo de um lembrete; os campos dos outros ficam guardados
   renderOutbox()
   show('write')
   pushOverlay('write')
@@ -626,7 +636,12 @@ async function commitDraft() {
   else if (it.kind === 'sonho') item.body = it.body.trim()
   else item.grato = it.grato.map(g => g.trim())
   outbox.items.unshift(item)
-  outbox.draft = { kind: it.kind }
+  // Limpa só os campos do que foi guardado. Texto escrito noutro tipo fica.
+  const rest = { ...it, date: '', time: '' }
+  if (it.kind === 'entrada') { rest.loc = ''; rest.body = '' }
+  else if (it.kind === 'sonho') rest.body = ''
+  else rest.grato = ['', '', '']
+  outbox.draft = draftHasText(rest) ? rest : { kind: it.kind }
   clearTimeout(draftTimer)
   try { await saveOutbox() } catch { toast('Atenção: não consegui guardar neste telemóvel. Envia ou copia antes de sair.') }
   fillForm(outbox.draft)
@@ -695,7 +710,7 @@ function renderOutbox() {
   }).join('')
 }
 
-$('btn-write').addEventListener('click', openWrite)
+$('btn-write').addEventListener('click', () => openWrite())
 $('write-back').addEventListener('click', () => closeWrite())
 $('write-kind').addEventListener('click', e => {
   const b = e.target.closest('[data-kind]')
@@ -728,6 +743,75 @@ $('outbox').addEventListener('click', async e => {
   renderOutbox()
   updatePendingDot()
 })
+
+// ── LEMBRETES ─────────────────────────────────────────────────────────────────
+// As notificações vêm de fora, a horas marcadas: um agendador privado no GitHub
+// (antoniograzzawut/oirad-reminders) envia-as pelo serviço de notificações do
+// Chrome. Esta página só pede licença ao Android, cria o endereço deste
+// telemóvel e deixa copiá-lo para o Claude o pôr no agendador. As notificações
+// trazem só o tipo de lembrete; nada do diário passa por elas.
+const VAPID_PUBLIC = 'BEbE_yMWEkEW8uP0VsOUi3Z6RqwvnUh5YOdBa-G_T4vTE0Htxldk9Jgcj1H0N2W5Lii-a_6Gq6BDW1H2LKxV4Cc'
+
+function b64urlBytes(s) {
+  const b = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - s.length % 4) % 4))
+  return Uint8Array.from(b, c => c.charCodeAt(0))
+}
+
+async function pushSub() {
+  const reg = await navigator.serviceWorker.ready
+  return reg.pushManager.getSubscription()
+}
+
+async function renderRemind() {
+  const box = $('remind-box')
+  if (!box) return
+  const row = (state, btn) => {
+    box.innerHTML = `<div class="sheet-row"><span>Lembretes</span><span>${state}</span></div>${btn || ''}`
+  }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return row('este browser não recebe')
+  if (Notification.permission === 'denied') return row('bloqueados', '<p class="foot">O Android está a bloquear as notificações desta app. Liga-as em Definições → Apps → OIRAD → Notificações e volta aqui.</p>')
+  let sub = null
+  try { sub = await pushSub() } catch {}
+  if (!sub) return row('desligados', '<button class="sheet-btn" type="button" data-act="remind-on">Ligar lembretes</button>')
+  row('ligados', '<button class="sheet-btn" type="button" data-act="remind-code">Copiar código para o Claude</button>')
+}
+
+async function remindOn() {
+  try {
+    if (await Notification.requestPermission() !== 'granted') { toast('Sem licença para notificações, não há lembretes.'); return renderRemind() }
+    const reg = await navigator.serviceWorker.ready
+    await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlBytes(VAPID_PUBLIC) })
+    toast('Ligados. Agora toca em Copiar código e cola-o na conversa com o Claude.')
+  } catch { toast('Não consegui ligar os lembretes neste telemóvel.') }
+  renderRemind()
+}
+
+async function remindCode() {
+  try {
+    const sub = await pushSub()
+    if (!sub) return renderRemind()
+    await copyText(JSON.stringify(sub.toJSON()))
+    toast('Código copiado. Cola-o na conversa com o Claude.')
+  } catch { toast('Não consegui copiar.') }
+}
+
+// Um lembrete tocado com a app já aberta chega aqui; com ela fechada, chega
+// pelo endereço (?escrever=…) e o arranque trata dele.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', e => {
+    const k = e.data && e.data.escrever
+    if (!C.KINDS.includes(k)) return
+    if (!key || $('scr-lock').hidden === false) { pendingWrite = k; return }
+    if (!$('scr-write').hidden) { setKind(k); stashDraft(); return }
+    if ($('scr-app').hidden) return
+    if (!overlays.length) return openWrite(k)
+    // Menu ou pesquisa abertos: fecham, e a escrita abre quando o histórico assentar.
+    closeSheet(true)
+    closeSearch(true)
+    window.addEventListener('popstate', () => openWrite(k), { once: true })
+    dropOverlays()
+  })
+}
 
 // ── INSTALAR ──────────────────────────────────────────────────────────────────
 // O menu novo do Chrome no Android nem sempre mostra "Instalar". Quando o Chrome

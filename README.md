@@ -62,6 +62,14 @@ no menu de partilha do Android escolhe **Drive** → muda a pasta para
 - Apagar a cópia do telemóvel (menu, ou "Esqueci-me da palavra-passe") apaga
   também esta lista; se houver texto por enviar, a pergunta avisa.
 
+**Lembretes**: notificações a horas marcadas (sonhos 9:30, grato 22:30,
+entrada ao domingo 19:00). Tocar abre a app, pede a palavra-passe e vai direito
+à escrita certa. Ligar, uma vez: menu → **Ligar lembretes** → permitir → **Copiar
+código para o Claude** → colar na conversa com o Claude, que o põe no
+agendador. Quem envia é um repositório privado,
+`antoniograzzawut/oirad-reminders`, que corre no GitHub a essas horas. Desligar:
+carrega sem largar numa notificação e desliga-as no Android.
+
 **Actualizar a cópia**: menu → Actualizar a cópia do Drive → escolher os
 ficheiros outra vez. A cópia não se actualiza sozinha. "Última entrada do
 diário" no menu diz até onde a cópia chega.
@@ -82,6 +90,10 @@ ficheiros outra vez. O diário no Mac e no Drive não é tocado.
 - O diário nunca sai do telemóvel. A página não tem como o enviar para lado
   nenhum: a regra de segurança no `index.html` (Content-Security-Policy) proíbe
   ligações a qualquer outro endereço.
+- As notificações dos lembretes chegam pelo serviço de notificações do Chrome
+  e trazem só o tipo e o texto do lembrete ("Três coisas de hoje."), cifrados
+  para este telemóvel. Nada do diário vai nelas, e a página não envia nada
+  para lado nenhum para as receber.
 - O que escreves só sai quando carregas em Enviar ou Copiar, e sai pelo menu
   de partilha do Android, para onde tu escolheres. A página não fala com o
   Drive directamente nem pede login no Google.

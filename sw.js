@@ -28,3 +28,35 @@ self.addEventListener('fetch', e => {
     }
   })())
 })
+
+// Lembretes. Chegam do agendador (antoniograzzawut/oirad-reminders) só com o
+// tipo e o texto do lembrete. Tocar abre a escrita nesse tipo.
+const KINDS = ['entrada', 'sonho', 'grato']
+
+self.addEventListener('push', e => {
+  let d = {}
+  try { d = e.data ? e.data.json() : {} } catch {}
+  const kind = KINDS.includes(d.kind) ? d.kind : 'entrada'
+  e.waitUntil(self.registration.showNotification(d.title || 'OIRAD', {
+    body: d.body || '',
+    tag: 'oirad-' + kind,
+    icon: 'icon-192.png',
+    data: { kind },
+  }))
+})
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close()
+  const kind = e.notification.data && e.notification.data.kind
+  e.waitUntil((async () => {
+    const scope = self.registration.scope
+    const open = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .find(c => c.url.startsWith(scope))
+    if (open) {
+      await open.focus()
+      open.postMessage({ escrever: kind })
+      return
+    }
+    await self.clients.openWindow(scope + '?escrever=' + encodeURIComponent(kind))
+  })())
+})

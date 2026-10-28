@@ -19,6 +19,11 @@ está no vault, nota `~/Antoine/Projects/OIRAD.md`. Instruções de uso no READM
 - **Partilhar só ficheiros `.txt`.** O Chrome no Android não deixa partilhar
   `.json`. A entrada sai no formato exacto que a Nova Entrada do Mac grava
   (`captureText` em `core.js`, testado contra `parseOIRAD`).
+- **Lembretes só levam o tipo.** As notificações vêm do agendador privado
+  `antoniograzzawut/oirad-reminders` (GitHub Actions) e trazem só tipo, título
+  e texto fixo. Nunca pôr conteúdo do diário numa notificação. `VAPID_PUBLIC`
+  em `app.js` tem de ser a mesma chave que `VAPID_PUBLIC_KEY` nesse
+  repositório; se mudar, o telemóvel tem de ligar os lembretes outra vez.
 - **Nunca dados verdadeiros no repositório.** É público. `test/fixtures/` só
   tem texto inventado.
 - **O parser é do Mac.** `parseOIRAD` em `core.js` é cópia exacta do de
