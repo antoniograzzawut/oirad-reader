@@ -95,6 +95,34 @@ async function test(name, fn) {
     await assert.rejects(async () => C.unseal(await C.deriveKey('palavra errada', salt, 1000), box.iv, box.ct))
   })
 
+  await test('entrada escrita no telemóvel sai igual ao bloco do Mac e lê-se como entrada', () => {
+    const it = { kind: 'entrada', date: '2026-10-28', time: '16:20', loc: ' Lisboa ', body: ' Texto inventado. ', createdAt: new Date(2026, 9, 28, 16, 21, 5).getTime() }
+    const txt = C.captureText(it)
+    assert.equal(txt, '28/10/2026\n\n16:20\nLisboa\n\nTexto inventado.\n')
+    const r = C.parseOIRAD(txt)
+    assert.match(r.html, /entry-date">28\/10\/2026/)
+    assert.match(r.html, /entry-loc">Lisboa/)
+    assert.equal(C.captureFileName(it), 'oirad-entrada-2026-10-28-162105.txt')
+  })
+
+  await test('entrada sem local não deixa linha a mais', () => {
+    assert.equal(C.captureText({ kind: 'entrada', date: '2026-10-28', time: '9:05', loc: '', body: 'x' }), '28/10/2026\n\n9:05\n\nx\n')
+  })
+
+  await test('sonho e gratidão saem legíveis', () => {
+    assert.equal(C.captureText({ kind: 'sonho', date: '2026-10-28', time: '08:10', body: 'Sonho falso' }), 'Sonho · 28/10/2026 · 08:10\n\nSonho falso\n')
+    assert.equal(C.captureText({ kind: 'grato', date: '2026-10-28', time: '22:00', grato: ['a', 'b ', ' c'] }), 'Grato · 28/10/2026 · 22:00\n\n1. a\n2. b\n3. c\n')
+  })
+
+  await test('não deixa enviar o que está incompleto', () => {
+    const base = { date: '2026-10-28', time: '10:00' }
+    assert.ok(C.captureProblem({ ...base, kind: 'entrada', body: '  ' }))
+    assert.ok(C.captureProblem({ ...base, kind: 'grato', grato: ['a', '', 'c'] }))
+    assert.ok(C.captureProblem({ kind: 'sonho', date: '', time: '10:00', body: 'x' }))
+    assert.equal(C.captureProblem({ ...base, kind: 'sonho', body: 'x' }), '')
+    assert.equal(C.captureProblem({ ...base, kind: 'grato', grato: ['a', 'b', 'c'] }), '')
+  })
+
   // A cópia do parser tem de ser igual à do Mac. Só corre quando encontra a app do Mac.
   const macCandidates = [
     path.join(__dirname, '..', '..', 'oirad-app', 'index.html'),

@@ -250,9 +250,53 @@ async function unseal(key, iv, ct) {
 
 function newSalt() { return cryptoApi().getRandomValues(new Uint8Array(16)) }
 
+// ── ESCREVER ──────────────────────────────────────────────────────────────────
+// O que se escreve no telemóvel sai como ficheiro de texto para a pasta OIRAD
+// Inbox do Drive. Nunca entra no diário daqui: entra no Mac, pela mão do António.
+const KINDS = ['entrada', 'sonho', 'grato']
+const pad = n => String(n).padStart(2, '0')
+
+function isoToHeader(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '')
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : ''
+}
+function todayIso(d) { d = d || new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
+function nowHHMM(d) { d = d || new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
+
+// Uma entrada sai igual ao bloco que a "+ Nova Entrada" do Mac junta ao diário,
+// para se poder colar tal e qual no modo de texto do diário.
+function captureText(it) {
+  const date = isoToHeader(it.date)
+  if (it.kind === 'entrada') {
+    const locLine = it.loc && it.loc.trim() ? `${it.loc.trim()}\n` : ''
+    return `${date}\n\n${it.time}\n${locLine}\n${(it.body || '').trim()}\n`
+  }
+  if (it.kind === 'sonho') return `Sonho · ${date} · ${it.time}\n\n${(it.body || '').trim()}\n`
+  const lines = (it.grato || []).map((g, i) => `${i + 1}. ${String(g || '').trim()}`).join('\n')
+  return `Grato · ${date} · ${it.time}\n\n${lines}\n`
+}
+
+function captureFileName(it) {
+  const c = new Date(it.createdAt || Date.now())
+  return `oirad-${it.kind}-${it.date}-${pad(c.getHours())}${pad(c.getMinutes())}${pad(c.getSeconds())}.txt`
+}
+
+// Devolve o que falta, ou '' se está pronto a enviar. Gratidão pede as três, como no Mac.
+function captureProblem(it) {
+  if (!KINDS.includes(it.kind)) return 'Escolhe Entrada, Sonho ou Grato.'
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(it.date || '')) return 'Falta a data.'
+  if (!/^\d{1,2}:\d{2}$/.test(it.time || '')) return 'Falta a hora.'
+  if (it.kind === 'grato') {
+    const g = it.grato || []
+    return g.length === 3 && g.every(x => String(x || '').trim()) ? '' : 'Preenche as três.'
+  }
+  return (it.body || '').trim() ? '' : 'Escreve alguma coisa primeiro.'
+}
+
 const api = {
   parseOIRAD, countEntries, lastEntryDate, fmtDate, keyLabel, dreamList, gratitudeList,
   classifyFile, foldWithMap, fold, findAll, ITER, deriveKey, seal, unseal, newSalt,
+  KINDS, isoToHeader, todayIso, nowHHMM, captureText, captureFileName, captureProblem,
 }
 if (typeof module !== 'undefined' && module.exports) module.exports = api
 else root.OiradCore = api

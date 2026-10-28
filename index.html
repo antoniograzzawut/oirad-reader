@@ -31,6 +31,7 @@
   --body:   'Gill Sans', 'Gill Sans MT', Calibri, Roboto, sans-serif;
   --fs:     16px;
   --scale:  1;
+  color-scheme: dark;
 }
 
 html, body { height: 100%; background: var(--paper); color: var(--ink); -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
@@ -143,6 +144,29 @@ mark.cur { background: var(--accent); color: #fff; }
 #veil { position: fixed; inset: 0; z-index: 50; background: var(--paper); display: none; }
 html.veiled #veil { display: block; }
 
+
+/* Escrever */
+#scr-write { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--paper); }
+.write-bar { flex: none; display: flex; align-items: center; gap: 4px; height: 48px; padding: 0 16px 0 4px; border-bottom: 1px solid var(--border); }
+.write-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink); }
+.write-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 16px 16px 56px; display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.field input, .field textarea { width: 100%; font-family: var(--body); font-size: 16px; font-weight: 400; letter-spacing: normal; text-transform: none; color: var(--ink); background: transparent; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 8px 2px; outline: none; }
+.field textarea { border: 1px solid var(--border); padding: 10px 12px; min-height: 38vh; line-height: 1.6; resize: vertical; }
+.field input:focus, .field textarea:focus { border-color: var(--accent); }
+.row2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
+.grato-fields { display: flex; flex-direction: column; gap: 12px; }
+#btn-write { position: relative; }
+#btn-write.pending::after { content: ''; position: absolute; top: 9px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.outbox-head { margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.ob-empty { font-size: 13px; color: var(--muted); }
+.ob-item { padding: 14px 0; border-bottom: 1px solid var(--border); }
+.ob-meta { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; }
+.ob-meta .todo { color: var(--accent); }
+.ob-text { font-family: var(--body); font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.ob-actions { display: flex; gap: 6px; margin-top: 10px; }
+.ob-actions button { flex: 1; border: 1px solid var(--border); padding: 10px 4px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
 /* ── ASPECTO 2: LIVRO ─────────────────────────────────────────────────────────
    Ambiente "carvão" do Mac, letra serifada, coluna de leitura centrada, datas
    como no estilo antigo do Mac (antes do carimbo), notas com a régua simples. */
@@ -180,6 +204,9 @@ html[data-look="livro"] .fab-btn { border-radius: 20px; font-family: var(--sans)
 html[data-look="livro"] .seg button, html[data-look="livro"] .years button, html[data-look="livro"] .btn { font-family: var(--sans); }
 html[data-look="livro"] .years button { font-family: var(--serif); font-size: 14px; }
 html[data-look="livro"] mark.cur { background: #8A6A2A; }
+html[data-look="livro"] .write-title { font-family: var(--serif); font-size: 15px; font-weight: 400; letter-spacing: 0.3em; }
+html[data-look="livro"] .field textarea { line-height: 1.75; }
+html[data-look="livro"] .ob-actions button { font-family: var(--sans); }
 
 /* ── ASPECTO 3: OIRAD.EXE ─────────────────────────────────────────────────────
    Ambiente "meia-noite" e as janelas Windows 95 que o Mac já usa na caixa de
@@ -233,6 +260,12 @@ html[data-look="exe"] #sheet { background: var(--chrome); border: 2px solid; bor
 html[data-look="exe"] .sheet-title { position: sticky; top: 0; z-index: 1; margin: 0 -16px 12px; padding: 7px 12px; background: var(--win); color: #fff; letter-spacing: 0.14em; }
 html[data-look="exe"] mark.cur { background: #1084d0; }
 html[data-look="exe"] #toast { border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
+html[data-look="exe"] .write-bar { background: var(--win); border-bottom: 0; height: 44px; }
+html[data-look="exe"] .write-title { color: #fff; }
+html[data-look="exe"] .write-bar .icon-btn { width: 34px; height: 30px; margin-left: 6px; background: var(--chrome); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); color: var(--ink); }
+html[data-look="exe"] .write-bar .icon-btn svg { width: 16px; height: 16px; }
+html[data-look="exe"] .field input, html[data-look="exe"] .field textarea { background: var(--chrome); border: 2px solid; border-color: var(--lo) var(--hi) var(--hi) var(--lo); padding: 8px 10px; }
+html[data-look="exe"] .ob-actions button { background: var(--chrome); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); color: var(--ink); }
 html[data-look="exe"] .empty { margin: 24px 6px; background: var(--chrome); border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
 </style>
 </head>
@@ -254,7 +287,7 @@ html[data-look="exe"] .empty { margin: 24px 6px; background: var(--chrome); bord
 <section id="scr-setup" class="screen gate" hidden>
   <div class="gate-box">
     <div class="gate-title"><span class="stamp">OIRAD</span></div>
-    <p class="lede">Leitor do diário para o telemóvel. <b>Só lê.</b> Nada do que fizeres aqui muda o diário no Mac ou no Drive.</p>
+    <p class="lede">O diário no telemóvel, para ler e para escrever. <b>Nada aqui muda o diário.</b> O que escreves vai para uma pasta à parte no Drive e só entra no diário quando o juntares no Mac.</p>
     <p class="lede">Escolhe uma palavra-passe. Tranca a cópia que fica guardada neste telemóvel.</p>
     <form id="setup-form" autocomplete="off">
       <input id="setup-pw" type="password" placeholder="palavra-passe" autocomplete="new-password" aria-label="Palavra-passe">
@@ -285,6 +318,7 @@ html[data-look="exe"] .empty { margin: 24px 6px; background: var(--chrome); bord
     <div id="bar-top">
       <span class="stamp" id="brand">OIRAD</span>
       <span class="spacer"></span>
+      <button class="icon-btn" id="btn-write" type="button" aria-label="Escrever"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="m14 6 4 4"/></svg></button>
       <button class="icon-btn" id="btn-search" type="button" aria-label="Procurar"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button>
       <button class="icon-btn" id="btn-menu" type="button" aria-label="Menu"><svg class="solid" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg></button>
     </div>
@@ -310,6 +344,37 @@ html[data-look="exe"] .empty { margin: 24px 6px; background: var(--chrome); bord
       <button class="fab-btn" id="btn-end" type="button" aria-label="Ir para a entrada mais recente"><svg viewBox="0 0 24 24"><path d="M12 4v15M6 13l6 6 6-6"/></svg></button>
     </div>
   </main>
+</section>
+
+<section id="scr-write" class="screen" data-kind="entrada" hidden>
+  <header class="write-bar">
+    <button class="icon-btn" id="write-back" type="button" aria-label="Voltar"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></button>
+    <span class="write-title">Escrever</span>
+  </header>
+  <div class="write-scroll">
+    <div class="seg" id="write-kind">
+      <button type="button" data-kind="entrada">Entrada</button>
+      <button type="button" data-kind="sonho">Sonho</button>
+      <button type="button" data-kind="grato">Grato</button>
+    </div>
+    <div class="row2">
+      <label class="field">Data<input id="w-date" type="date"></label>
+      <label class="field">Hora<input id="w-time" type="time"></label>
+    </div>
+    <label class="field" data-for="entrada">Local<input id="w-loc" type="text" autocomplete="off" enterkeyhint="next"></label>
+    <label class="field" data-for="entrada sonho">Texto<textarea id="w-body" autocapitalize="sentences"></textarea></label>
+    <div class="grato-fields" data-for="grato">
+      <label class="field">1<input id="w-g1" type="text" autocomplete="off" enterkeyhint="next"></label>
+      <label class="field">2<input id="w-g2" type="text" autocomplete="off" enterkeyhint="next"></label>
+      <label class="field">3<input id="w-g3" type="text" autocomplete="off" enterkeyhint="done"></label>
+    </div>
+    <p class="msg" id="write-msg"></p>
+    <button class="btn primary" id="w-send" type="button">Enviar para o Drive</button>
+    <button class="btn" id="w-copy" type="button">Copiar texto</button>
+    <p class="hint">Em Enviar, escolhe <b>Drive</b> e a pasta <b>OIRAD Inbox</b>. Tudo o que escreves fica também guardado aqui, cifrado, até o apagares.</p>
+    <div class="outbox-head">Escrito neste telemóvel</div>
+    <div id="outbox"></div>
+  </div>
 </section>
 
 <div id="sheet-wrap" hidden>

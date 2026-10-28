@@ -1,6 +1,8 @@
-// OIRAD Leitor: o ecrã. Só lê. Não existe aqui nenhum caminho que escreva no
-// Drive ou no Mac: os ficheiros chegam pelo selector do Android como cópias, e o
-// que fica guardado vive só neste telemóvel, cifrado com a palavra-passe.
+// OIRAD Leitor: o ecrã. Não existe aqui nenhum caminho que escreva no diário,
+// no Drive ou no Mac por conta própria: os ficheiros chegam pelo selector do
+// Android como cópias, o que se escreve só sai quando o António carrega em
+// Enviar (menu de partilha do Android), e o que fica guardado vive só neste
+// telemóvel, cifrado com a palavra-passe.
 (() => {
 'use strict'
 const C = window.OiradCore
@@ -58,9 +60,13 @@ let tab = 'diary'
 let years = {}
 const html = {}      // HTML de cada separador sem marcas de pesquisa
 let hiddenAt = 0
+let outbox = emptyOutbox() // o que se escreveu aqui: { items, draft }, guardado cifrado
+let outboxLocked = false   // a lista guardada não abriu: não se escreve por cima dela
+let shareGraceUntil = 0    // enviar abre o Drive, que pode demorar: não trancar a meio
+let sharing = false
 
 function show(name) {
-  for (const s of ['lock', 'setup', 'import', 'app']) $('scr-' + s).hidden = s !== name
+  for (const s of ['lock', 'setup', 'import', 'app', 'write']) $('scr-' + s).hidden = s !== name
 }
 function say(id, text) { $(id).textContent = text || '' }
 async function busy(btn, label, fn) {
@@ -110,6 +116,8 @@ $('setup-form').addEventListener('submit', async e => {
   $('setup-pw').value = ''
   $('setup-pw2').value = ''
   data = { diary: null, dreams: null, gratitude: null }
+  outbox = emptyOutbox()
+  outboxLocked = false
   openImport(false)
   // Pedir ao Android para não apagar a cópia quando faltar espaço. Pode recusar; se recusar, escolhe-se outra vez.
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {})
@@ -191,6 +199,7 @@ $('lock-form').addEventListener('submit', async e => {
     try {
       const k = await C.deriveKey(pw, vault.salt, vault.iter)
       data = await C.unseal(k, vault.iv, vault.ct)
+      await openOutbox(k)
       key = k
       ok = true
     } catch { data = null }
@@ -200,41 +209,55 @@ $('lock-form').addEventListener('submit', async e => {
   enterApp()
 })
 
-$('lock-forgot').addEventListener('click', () => {
-  if (confirm('Apagar a cópia guardada neste telemóvel?\n\nO diário no Mac e no Drive não é tocado. Depois escolhes uma palavra-passe nova e os ficheiros outra vez.')) wipe()
+$('lock-forgot').addEventListener('click', async () => {
+  let unsent = 0
+  try { const m = await kvGet('outboxMeta'); unsent = (m && m.unsent) || 0 } catch {}
+  const warn = unsent ? `\n\nATENÇÃO: ${unsent === 1 ? 'há 1 texto escrito' : `há ${unsent} textos escritos`} neste telemóvel que não foi enviado nem copiado. Perde-se.` : ''
+  if (confirm(`Apagar a cópia guardada neste telemóvel?${warn}\n\nO diário no Mac e no Drive não é tocado. Depois escolhes uma palavra-passe nova e os ficheiros outra vez.`)) wipe()
 })
 
 function lock() {
+  if (!$('scr-write').hidden) stashDraft()
   key = null
   data = null
+  outbox = emptyOutbox()
   dropOverlays()
   closeSheet(true)
   closeSearch(true)
   clearViews()
+  clearWriteForm()
   if (vault && vault.ct) show('lock')
   else { vault = null; show('setup') }
 }
 
 async function wipe() {
   try { await kvDel('vault') } catch {}
+  try { await kvDel('outbox'); await kvDel('outboxMeta') } catch {}
   key = null
   vault = null
   data = null
+  outbox = emptyOutbox()
+  outboxLocked = false
   clearViews()
+  clearWriteForm()
   show('setup')
 }
 
 // Fora da app mais de um minuto, tranca. Enquanto está fora, tapa o ecrã
-// (para o diário não aparecer na lista de apps recentes). Só no ecrã de leitura:
-// escolher ficheiros também sai da app, e isso não pode trancar a meio.
+// (para o diário não aparecer na lista de apps recentes). Só a ler ou a escrever:
+// escolher ficheiros também sai da app, e isso não pode trancar a meio. Nem
+// enviar para o Drive, que abre outra app e pode demorar.
 document.addEventListener('visibilitychange', () => {
-  const reading = !$('scr-app').hidden
+  const inside = !$('scr-app').hidden || !$('scr-write').hidden
   if (document.hidden) {
     hiddenAt = Date.now()
-    if (reading) document.documentElement.classList.add('veiled')
+    if (inside) document.documentElement.classList.add('veiled')
+    if (!$('scr-write').hidden) stashDraft()
     return
   }
-  if (reading && key && Date.now() - hiddenAt > LOCK_AFTER_MS) lock()
+  const sending = sharing || Date.now() < shareGraceUntil
+  if (!sharing) shareGraceUntil = 0 // a folga do envio serve para um regresso, não mais
+  if (inside && key && !sending && Date.now() - hiddenAt > LOCK_AFTER_MS) lock()
   document.documentElement.classList.remove('veiled')
 })
 
@@ -284,6 +307,7 @@ function clearViews() {
 function enterApp() {
   buildViews()
   show('app')
+  updatePendingDot()
   selectTab(tab)
   // Abre no fim do diário, na entrada mais recente, como no Mac.
   requestAnimationFrame(() => { const v = $('view-diary'); v.scrollTop = v.scrollHeight })
@@ -433,7 +457,7 @@ function openMenu() {
     <div class="sheet-row"><span>Tamanho da letra</span><div class="seg"><button type="button" data-act="smaller">A−</button><button type="button" data-act="bigger">A+</button></div></div>
     <button class="sheet-btn" type="button" data-act="lock">Trancar agora</button>
     <button class="sheet-btn danger" type="button" data-act="wipe">Apagar a cópia deste telemóvel</button>
-    <p class="foot">Só leitura: nada aqui escreve no Mac nem no Drive. Tranca sozinho depois de um minuto fora da app.</p>`)
+    <p class="foot">Ler nunca muda nada. O que escreves só sai quando carregas em Enviar, e só entra no diário quando o juntares no Mac. Tranca sozinho depois de um minuto fora da app.</p>`)
 }
 
 function openYears() {
@@ -475,7 +499,11 @@ $('sheet-body').addEventListener('click', e => {
     case 'lock': closeSheet(); lock(); break
     case 'top': case 'end': closeSheet(); scrollDiary(b.dataset.act); break
     case 'wipe':
-      if (confirm('Apagar a cópia guardada neste telemóvel?\n\nO diário no Mac e no Drive não é tocado.')) { closeSheet(); wipe() }
+      {
+        const unsent = unsentCount(outbox)
+        const warn = unsent ? `\n\nATENÇÃO: ${unsent === 1 ? 'há 1 texto escrito' : `há ${unsent} textos escritos`} aqui que não foi enviado nem copiado. Perde-se.` : ''
+        if (confirm(`Apagar a cópia guardada neste telemóvel?${warn}\n\nO diário no Mac e no Drive não é tocado.`)) { closeSheet(); wipe() }
+      }
       break
   }
 })
@@ -500,6 +528,206 @@ function setScale(dir) {
   document.documentElement.style.setProperty('--scale', SCALES[i])
   pref('oirad-leitor-scale', String(SCALES[i]))
 }
+
+// ── ESCREVER ──────────────────────────────────────────────────────────────────
+// Entrada, sonho ou gratidão. Cada texto fica numa lista neste telemóvel,
+// cifrada, até o António o apagar; Enviar só o entrega ao menu de partilha do
+// Android (para o Drive, pasta OIRAD Inbox). Nunca se perde um texto em silêncio:
+// o rascunho grava-se enquanto se escreve e ao sair da app.
+const KIND_LABEL = { entrada: 'Entrada', sonho: 'Sonho', grato: 'Grato' }
+const W = { date: $('w-date'), time: $('w-time'), loc: $('w-loc'), body: $('w-body'), g: [$('w-g1'), $('w-g2'), $('w-g3')] }
+let writeKind = 'entrada'
+let draftTimer = 0
+
+function emptyOutbox() { return { items: [], draft: null } }
+function draftHasText(d) {
+  return !!d && !!(String(d.body || '').trim() || String(d.loc || '').trim() || (d.grato || []).some(x => String(x || '').trim()))
+}
+function unsentCount(ob) {
+  return ob.items.filter(i => !i.sentAt && !i.copiedAt).length + (draftHasText(ob.draft) ? 1 : 0)
+}
+
+async function openOutbox(k) {
+  outboxLocked = false
+  let rec = null
+  try { rec = await kvGet('outbox') } catch {}
+  if (!rec) { outbox = emptyOutbox(); return }
+  try { outbox = await C.unseal(k, rec.iv, rec.ct) }
+  catch {
+    // Não abriu: fica como está no telemóvel e nada se grava por cima.
+    outbox = emptyOutbox()
+    outboxLocked = true
+  }
+}
+
+async function saveOutbox(k = key, ob = outbox) {
+  if (!k || !ob || outboxLocked) return
+  const { iv, ct } = await C.seal(k, ob)
+  await kvSet('outbox', { iv, ct })
+  await kvSet('outboxMeta', { unsent: unsentCount(ob) })
+}
+
+function readForm() {
+  return { kind: writeKind, date: W.date.value, time: W.time.value, loc: W.loc.value, body: W.body.value, grato: W.g.map(i => i.value) }
+}
+function fillForm(d) {
+  const now = new Date()
+  d = d || {}
+  W.date.value = d.date || C.todayIso(now)
+  W.time.value = d.time || C.nowHHMM(now)
+  W.loc.value = d.loc || ''
+  W.body.value = d.body || ''
+  W.g.forEach((inp, i) => { inp.value = (d.grato && d.grato[i]) || '' })
+  setKind(C.KINDS.includes(d.kind) ? d.kind : 'entrada')
+}
+function clearWriteForm() {
+  W.loc.value = ''
+  W.body.value = ''
+  W.g.forEach(i => { i.value = '' })
+  $('outbox').innerHTML = ''
+}
+function setKind(kind) {
+  writeKind = kind
+  $('scr-write').dataset.kind = kind
+  document.querySelectorAll('#write-kind button').forEach(b => b.classList.toggle('on', b.dataset.kind === kind))
+  document.querySelectorAll('#scr-write [data-for]').forEach(el => { el.hidden = !el.dataset.for.split(' ').includes(kind) })
+  say('write-msg')
+}
+function stashDraft() {
+  clearTimeout(draftTimer)
+  outbox.draft = readForm()
+  saveOutbox().catch(() => {})
+}
+function updatePendingDot() { $('btn-write').classList.toggle('pending', unsentCount(outbox) > 0) }
+
+function openWrite() {
+  if (outboxLocked) return toast('Não consegui abrir o que escreveste neste telemóvel. Não mexi em nada; para não estragar, escrever fica desligado até isto se resolver.')
+  // Rascunho com texto volta tal e qual; sem texto, data e hora de agora.
+  fillForm(draftHasText(outbox.draft) ? outbox.draft : { kind: outbox.draft && outbox.draft.kind })
+  renderOutbox()
+  show('write')
+  pushOverlay('write')
+}
+function closeWrite(fromBack) {
+  if ($('scr-write').hidden) return
+  stashDraft()
+  show('app')
+  updatePendingDot()
+  if (!fromBack) popOverlay('write')
+}
+
+// Passa o rascunho para a lista (já a salvo) e limpa o formulário.
+async function commitDraft() {
+  const it = readForm()
+  const problem = C.captureProblem(it)
+  if (problem) { say('write-msg', problem); return null }
+  const item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), kind: it.kind, date: it.date, time: it.time, createdAt: Date.now(), sentAt: null, copiedAt: null }
+  if (it.kind === 'entrada') { item.loc = it.loc.trim(); item.body = it.body.trim() }
+  else if (it.kind === 'sonho') item.body = it.body.trim()
+  else item.grato = it.grato.map(g => g.trim())
+  outbox.items.unshift(item)
+  outbox.draft = { kind: it.kind }
+  clearTimeout(draftTimer)
+  try { await saveOutbox() } catch { toast('Atenção: não consegui guardar neste telemóvel. Envia ou copia antes de sair.') }
+  fillForm(outbox.draft)
+  renderOutbox()
+  updatePendingDot()
+  return item
+}
+
+async function sendItem(item) {
+  const file = new File([C.captureText(item)], C.captureFileName(item), { type: 'text/plain' })
+  if (!(navigator.canShare && navigator.canShare({ files: [file] }))) {
+    toast('Este browser não consegue enviar ficheiros. Usa Copiar e cola numa nota.')
+    return
+  }
+  shareGraceUntil = Date.now() + 5 * 60 * 1000
+  sharing = true
+  try {
+    await navigator.share({ files: [file] })
+    item.sentAt = Date.now()
+    await saveOutbox()
+    toast('Enviado. Confirma no Drive que ficou na pasta OIRAD Inbox.')
+  } catch {
+    toast('Não foi enviado. Continua guardado aqui, na lista.')
+  } finally { sharing = false }
+  renderOutbox()
+  updatePendingDot()
+}
+
+// Copiar: a via moderna, e a antiga se o browser recusar a moderna.
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return } catch {}
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.setAttribute('readonly', '')
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0'
+  document.body.appendChild(ta)
+  ta.select()
+  const ok = document.execCommand('copy')
+  ta.remove()
+  if (!ok) throw new Error('copy')
+}
+
+async function copyItem(item) {
+  try {
+    await copyText(C.captureText(item))
+    item.copiedAt = Date.now()
+    await saveOutbox()
+    toast('Copiado. Cola onde quiseres.')
+  } catch { toast('Não consegui copiar.') }
+  renderOutbox()
+  updatePendingDot()
+}
+
+function stamp(ts) { const d = new Date(ts); return `${C.fmtDate(d).slice(0, 5)} ${hhmm(d)}` }
+
+function renderOutbox() {
+  const el = $('outbox')
+  if (!outbox.items.length) { el.innerHTML = '<p class="ob-empty">Ainda nada.</p>'; return }
+  el.innerHTML = outbox.items.map(it => {
+    const state = it.sentAt ? `enviado ${stamp(it.sentAt)}` : it.copiedAt ? `copiado ${stamp(it.copiedAt)}` : '<span class="todo">por enviar</span>'
+    const preview = it.kind === 'grato' ? (it.grato || []).join(' · ') : (it.body || '')
+    return `<div class="ob-item" data-id="${esc(it.id)}">` +
+      `<div class="ob-meta">${KIND_LABEL[it.kind] || ''} · ${esc(C.isoToHeader(it.date))} ${esc(it.time)} · ${state}</div>` +
+      `<div class="ob-text">${esc(preview)}</div>` +
+      `<div class="ob-actions"><button type="button" data-ob="send">Enviar</button><button type="button" data-ob="copy">Copiar</button><button type="button" data-ob="del">Apagar</button></div></div>`
+  }).join('')
+}
+
+$('btn-write').addEventListener('click', openWrite)
+$('write-back').addEventListener('click', () => closeWrite())
+$('write-kind').addEventListener('click', e => {
+  const b = e.target.closest('[data-kind]')
+  if (!b) return
+  setKind(b.dataset.kind)
+  stashDraft()
+})
+for (const el of [W.date, W.time, W.loc, W.body, ...W.g]) {
+  el.addEventListener('input', () => {
+    say('write-msg')
+    clearTimeout(draftTimer)
+    draftTimer = setTimeout(stashDraft, 800)
+  })
+}
+$('w-send').addEventListener('click', async () => { const item = await commitDraft(); if (item) await sendItem(item) })
+$('w-copy').addEventListener('click', async () => { const item = await commitDraft(); if (item) await copyItem(item) })
+$('outbox').addEventListener('click', async e => {
+  const b = e.target.closest('[data-ob]')
+  if (!b) return
+  const item = outbox.items.find(i => i.id === b.closest('.ob-item').dataset.id)
+  if (!item) return
+  if (b.dataset.ob === 'send') return sendItem(item)
+  if (b.dataset.ob === 'copy') return copyItem(item)
+  const msg = item.sentAt || item.copiedAt
+    ? 'Apagar este texto deste telemóvel?'
+    : 'Este texto ainda não foi enviado nem copiado. Apagar mesmo? Perde-se.'
+  if (!confirm(msg)) return
+  outbox.items = outbox.items.filter(i => i !== item)
+  try { await saveOutbox() } catch {}
+  renderOutbox()
+  updatePendingDot()
+})
 
 // ── INSTALAR ──────────────────────────────────────────────────────────────────
 // O menu novo do Chrome no Android nem sempre mostra "Instalar". Quando o Chrome
@@ -544,6 +772,7 @@ window.addEventListener('popstate', () => {
   const name = overlays.pop()
   if (name === 'sheet') closeSheet(true)
   else if (name === 'search') closeSearch(true)
+  else if (name === 'write') closeWrite(true)
 })
 
 boot()
