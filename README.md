@@ -11,8 +11,11 @@ Endereço: https://antoniograzzawut.github.io/oirad-reader/
 
 1. No telemóvel, abre o **Chrome** e vai a
    `antoniograzzawut.github.io/oirad-reader`.
-2. Menu **⋮** (canto de cima, à direita) → **Adicionar ao ecrã principal** →
-   **Instalar**. Aparece o ícone OIRAD junto das outras apps.
+2. Toca no botão **Instalar no ecrã principal**, por baixo de Continuar, e
+   confirma. Aparece o ícone OIRAD junto das outras apps. O menu novo do Chrome
+   (Julho de 2026) nem sempre tem a opção de instalar; o botão da página não
+   depende dele. Se o botão não aparecer, a app funciona igual no separador do
+   Chrome.
 3. Abre a app pelo ícone. Escolhe uma palavra-passe (duas vezes).
 4. Toca em **Escolher ficheiros**. No ecrã de escolha do Android, abre o menu
    **☰** (canto de cima, à esquerda) → **Drive** → **O meu disco** →

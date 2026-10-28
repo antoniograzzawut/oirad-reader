@@ -497,6 +497,25 @@ function setScale(dir) {
   pref('oirad-leitor-scale', String(SCALES[i]))
 }
 
+// ── INSTALAR ──────────────────────────────────────────────────────────────────
+// O menu novo do Chrome no Android nem sempre mostra "Instalar". Quando o Chrome
+// avisa que a página é instalável, a própria página oferece o botão.
+let installEvent = null
+function showInstall(on) { document.querySelectorAll('.install-btn').forEach(b => { b.hidden = !on }) }
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault()
+  installEvent = e
+  showInstall(true)
+})
+window.addEventListener('appinstalled', () => { installEvent = null; showInstall(false) })
+document.addEventListener('click', async e => {
+  if (!e.target.closest('.install-btn') || !installEvent) return
+  const ev = installEvent
+  installEvent = null
+  showInstall(false)
+  try { await ev.prompt(); await ev.userChoice } catch {}
+})
+
 // ── BOTÃO "VOLTAR" DO ANDROID ─────────────────────────────────────────────────
 // Fecha o que estiver aberto (menu, anos, pesquisa) em vez de sair da app.
 const overlays = []
